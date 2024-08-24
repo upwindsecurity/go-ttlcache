@@ -339,8 +339,8 @@ func (c *Cache[K, V]) Has(key K) bool {
 	c.items.mu.RLock()
 	defer c.items.mu.RUnlock()
 
-	_, ok := c.items.values[key]
-	return ok
+	elem, ok := c.items.values[key]
+	return ok && !elem.Value.(*Item[K, V]).isExpiredUnsafe()
 }
 
 // GetOrSet retrieves an item from the cache by the provided key.
@@ -440,22 +440,31 @@ func (c *Cache[K, V]) Touch(key K) {
 	c.items.mu.Unlock()
 }
 
-// Len returns the total number of items in the cache.
+// Len returns the number of unexpired items in the cache.
 func (c *Cache[K, V]) Len() int {
 	c.items.mu.RLock()
 	defer c.items.mu.RUnlock()
 
-	return len(c.items.values)
+	size := 0
+	for _, elem := range c.items.values {
+		if !elem.Value.(*Item[K, V]).isExpiredUnsafe() {
+			size++
+		}
+	}
+
+	return size
 }
 
-// Keys returns all keys currently present in the cache.
+// Keys returns all unexpired keys in the cache.
 func (c *Cache[K, V]) Keys() []K {
 	c.items.mu.RLock()
 	defer c.items.mu.RUnlock()
 
-	res := make([]K, 0, len(c.items.values))
-	for k := range c.items.values {
-		res = append(res, k)
+	res := make([]K, 0)
+	for k, elem := range c.items.values {
+		if !elem.Value.(*Item[K, V]).isExpiredUnsafe() {
+			res = append(res, k)
+		}
 	}
 
 	return res
@@ -478,7 +487,7 @@ func (c *Cache[K, V]) Items() map[K]*Item[K, V] {
 	return items
 }
 
-// Range calls fn for each item present in the cache. If fn returns false,
+// Range calls fn for each unexpired item in the cache. If fn returns false,
 // Range stops the iteration.
 func (c *Cache[K, V]) Range(fn func(item *Item[K, V]) bool) {
 	c.items.mu.RLock()
@@ -491,9 +500,10 @@ func (c *Cache[K, V]) Range(fn func(item *Item[K, V]) bool) {
 
 	for item := c.items.lru.Front(); item != c.items.lru.Back().Next(); item = item.Next() {
 		i := item.Value.(*Item[K, V])
+		expired := i.isExpiredUnsafe()
 		c.items.mu.RUnlock()
 
-		if !fn(i) {
+		if !expired && !fn(i) {
 			return
 		}
 

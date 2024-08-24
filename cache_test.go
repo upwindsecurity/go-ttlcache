@@ -652,35 +652,12 @@ func Test_Cache_Delete(t *testing.T) {
 }
 
 func Test_Cache_Has(t *testing.T) {
-	cc := map[string]struct {
-		keys      []string
-		searchKey string
-		has       bool
-	}{
-		"Empty cache": {
-			keys:      []string{},
-			searchKey: "key1",
-			has:       false,
-		},
-		"Key exists": {
-			keys:      []string{"key1", "key2", "key3"},
-			searchKey: "key2",
-			has:       true,
-		},
-		"Key doesn't exist": {
-			keys:      []string{"key1", "key2", "key3"},
-			searchKey: "key4",
-			has:       false,
-		},
-	}
+	cache := prepCache(time.Hour, "1")
+	addToCache(cache, time.Nanosecond, "2")
 
-	for name, tc := range cc {
-		t.Run(name, func(t *testing.T) {
-			c := prepCache(NoTTL, tc.keys...)
-			has := c.Has(tc.searchKey)
-			assert.Equal(t, tc.has, has)
-		})
-	}
+	assert.True(t, cache.Has("1"))
+	assert.False(t, cache.Has("2"))
+	assert.False(t, cache.Has("3"))
 }
 
 func Test_Cache_GetOrSet(t *testing.T) {
@@ -827,11 +804,13 @@ func Test_Cache_Touch(t *testing.T) {
 
 func Test_Cache_Len(t *testing.T) {
 	cache := prepCache(time.Hour, "1", "2")
+	addToCache(cache, time.Nanosecond, "3")
 	assert.Equal(t, 2, cache.Len())
 }
 
 func Test_Cache_Keys(t *testing.T) {
 	cache := prepCache(time.Hour, "1", "2", "3")
+	addToCache(cache, time.Nanosecond, "4")
 	assert.ElementsMatch(t, []string{"1", "2", "3"}, cache.Keys())
 }
 
@@ -851,6 +830,7 @@ func Test_Cache_Items(t *testing.T) {
 
 func Test_Cache_Range(t *testing.T) {
 	c := prepCache(DefaultTTL, "1", "2", "3", "4", "5")
+	addToCache(c, time.Nanosecond, "6")
 	var results []string
 
 	c.Range(func(item *Item[string, string]) bool {
