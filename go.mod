@@ -1,4 +1,4 @@
-module github.com/jellydator/ttlcache/v3
+module github.com/upwindsecurity/go-ttlcache/v3
 
 go 1.18
 
