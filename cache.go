@@ -694,11 +694,7 @@ func (c *Cache[K, V]) OnEviction(fn func(context.Context, EvictionReason, *Item[
 	c.events.eviction.mu.Lock()
 	id := c.events.eviction.nextID
 	c.events.eviction.fns[id] = func(r EvictionReason, item *Item[K, V]) {
-		wg.Add(1)
-		go func() {
-			fn(ctx, r, item)
-			wg.Done()
-		}()
+		fn(ctx, r, item)
 	}
 	c.events.eviction.nextID++
 	c.events.eviction.mu.Unlock()
